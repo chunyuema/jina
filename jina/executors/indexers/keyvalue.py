@@ -14,6 +14,7 @@ HEADER_NONE_ENTRY = (-1, -1, -1)
 
 class BinaryPbIndexer(BaseKVIndexer):
     """Simple Key-value indexer."""
+
     class WriteHandler:
         """
         Write file handler.
@@ -21,6 +22,7 @@ class BinaryPbIndexer(BaseKVIndexer):
         :param path: Path of the file.
         :param mode: Writing mode. (e.g. 'ab', 'wb')
         """
+
         def __init__(self, path, mode):
             self.body = open(path, mode)
             self.header = open(path + '.head', mode)
@@ -42,13 +44,24 @@ class BinaryPbIndexer(BaseKVIndexer):
         :param path: Path of the file.
         :param key_length: Length of key.
         """
+
         def __init__(self, path, key_length):
             with open(path + '.head', 'rb') as fp:
-                tmp = np.frombuffer(fp.read(),
-                                    dtype=[('', (np.str_, key_length)), ('', np.int64), ('', np.int64), ('', np.int64)])
+                tmp = np.frombuffer(
+                    fp.read(),
+                    dtype=[
+                        ('', (np.str_, key_length)),
+                        ('', np.int64),
+                        ('', np.int64),
+                        ('', np.int64),
+                    ],
+                )
                 self.header = {
-                    r[0]: None if np.array_equal((r[1], r[2], r[3]), HEADER_NONE_ENTRY) else (r[1], r[2], r[3]) for r in
-                    tmp}
+                    r[0]: None
+                    if np.array_equal((r[1], r[2], r[3]), HEADER_NONE_ENTRY)
+                    else (r[1], r[2], r[3])
+                    for r in tmp
+                }
             self._body = open(path, 'r+b')
             self.body = self._body.fileno()
 
@@ -88,7 +101,9 @@ class BinaryPbIndexer(BaseKVIndexer):
         self._start = 0
         self._page_size = mmap.ALLOCATIONGRANULARITY
 
-    def add(self, keys: Iterable[str], values: Iterable[bytes], *args, **kwargs) -> None:
+    def add(
+        self, keys: Iterable[str], values: Iterable[bytes], *args, **kwargs
+    ) -> None:
         """Add the serialized documents to the index via document ids.
 
         :param keys: a list of ``id``, i.e. ``doc.id`` in protobuf
@@ -101,12 +116,21 @@ class BinaryPbIndexer(BaseKVIndexer):
 
         for key, value in zip(keys, values):
             l = len(value)  #: the length
-            p = int(self._start / self._page_size) * self._page_size  #: offset of the page
-            r = self._start % self._page_size  #: the remainder, i.e. the start position given the offset
+            p = (
+                int(self._start / self._page_size) * self._page_size
+            )  #: offset of the page
+            r = (
+                self._start % self._page_size
+            )  #: the remainder, i.e. the start position given the offset
             self.write_handler.header.write(
                 np.array(
                     (key, p, r, r + l),
-                    dtype=[('', (np.str_, self.key_length)), ('', np.int64), ('', np.int64), ('', np.int64)]
+                    dtype=[
+                        ('', (np.str_, self.key_length)),
+                        ('', np.int64),
+                        ('', np.int64),
+                        ('', np.int64),
+                    ],
                 ).tobytes()
             )
             self._start += l
@@ -126,7 +150,9 @@ class BinaryPbIndexer(BaseKVIndexer):
             with mmap.mmap(self.query_handler.body, offset=p, length=l) as m:
                 return m[r:]
 
-    def update(self, keys: Iterable[str], values: Iterable[bytes], *args, **kwargs) -> None:
+    def update(
+        self, keys: Iterable[str], values: Iterable[bytes], *args, **kwargs
+    ) -> None:
         """Update the serialized documents on the index via document ids.
 
         :param keys: a list of ``id``, i.e. ``doc.id`` in protobuf
@@ -134,7 +160,9 @@ class BinaryPbIndexer(BaseKVIndexer):
         :param args: extra arguments
         :param kwargs: keyword arguments
         """
-        keys, values = self._filter_nonexistent_keys_values(keys, values, self.query_handler.header.keys())
+        keys, values = self._filter_nonexistent_keys_values(
+            keys, values, self.query_handler.header.keys()
+        )
         if keys:
             self._delete(keys)
             self.add(keys, values)
@@ -146,7 +174,12 @@ class BinaryPbIndexer(BaseKVIndexer):
             self.write_handler.header.write(
                 np.array(
                     tuple(np.concatenate([[key], HEADER_NONE_ENTRY])),
-                    dtype=[('', (np.str_, self.key_length)), ('', np.int64), ('', np.int64), ('', np.int64)]
+                    dtype=[
+                        ('', (np.str_, self.key_length)),
+                        ('', np.int64),
+                        ('', np.int64),
+                        ('', np.int64),
+                    ],
                 ).tobytes()
             )
 
